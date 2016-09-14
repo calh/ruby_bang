@@ -25,7 +25,7 @@ $ ./my_script.rb
 
 * Have you been pulling your hair out, trying to get a shebang script to work with RVM?
 * Do you want to use multiple scripts in a crontab with different rubies?
-* Are you running Linux, with wonky argument passing to shebang executables?
+* Are you running Linux with wonky argument passing to shebang executables?
   * ( `#!/usr/bin/env rvm 2.2.0 do ruby` actually works on OSX )
   
 Then this is the app for **YOU**!
@@ -33,11 +33,11 @@ Then this is the app for **YOU**!
 ### How it works ###
 
 `ruby_bang` is a very simple wrapper to [RVM](https://rvm.io).  It first searches
-a few common spots RVM might be installed.  $PATH, $HOME/.rvm/bin, and /usr/local/rvm/bin/rvm.  
+a few common spots where RVM might be installed.  $PATH, $HOME/.rvm/bin, and /usr/local/rvm/bin/rvm.  
 
-After it finds an RVM installation, it splits the arguments after shebang executable 
-into space delimited arguments.  `ruby_bang` takes those arguments and calls `execve` with the RVM script.
-The ruby script's name (ARGV[0]) is passed to RVM as the last argument.
+After it finds an RVM installation, it splits the text after the shebang executable 
+into space delimited arguments.  `ruby_bang` then takes those arguments and calls `execve` to the RVM script.
+Your ruby script's name (`ARGV[0]`) is passed to RVM as the last argument.
 
 ### Why the name needs to begin with `ruby` ###
 
@@ -48,7 +48,7 @@ this error:
 ruby: no Ruby script found in input (LoadError)
 ```
 
-If the shebang line does not contain the word `ruby` in the beginning of the name, the ruby parser seems to 
+If the shebang line does not contain the word `ruby` in the beginning of the executable name, the ruby parser seems to 
 think it's not a ruby script.  Here's one attempt I tried:
 
 ```
@@ -83,4 +83,4 @@ $ ./myscript.rb
 2.2.0
 ```
 
-(MORE?)
+(ADD MORE?)
