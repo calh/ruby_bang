@@ -14,7 +14,7 @@ char * find_rvm_system(void);
 
 int main(int argc, char *argv[], char **envp)
 {
-  int num_params;
+  int i, num_params;
 
   char * rvm = find_rvm();
 
@@ -34,6 +34,12 @@ int main(int argc, char *argv[], char **envp)
   // argv[2] contains the shebang script's name.
   // pass it to RVM
   params[++num_params] = argv[2];
+  
+  // Everthing after argv[2] are parameters passed from
+  // the command line on the shell to the ruby script
+  for (i = 3 ; i < argc ; i++ )
+    params[++num_params] = argv[i];
+    
   params[++num_params] = NULL;
 
   execve(rvm, params, envp);
