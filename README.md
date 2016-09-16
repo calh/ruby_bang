@@ -17,6 +17,7 @@ puts RUBY_VERSION
 ```
 
 ```
+$ chmod 755 myscript.rb
 $ ./my_script.rb
 2.2.0
 ```
@@ -78,7 +79,6 @@ Here are some more advanced examples:
 puts RUBY_VERSION
 ```
 ```
-$ chmod 755 myscript.rb
 $ ./myscript.rb
 1.9.3
 2.2.0
