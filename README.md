@@ -100,3 +100,15 @@ curl=Curl::Easy.new
 ```
 
 (ADD MORE?)
+
+### Arguments work as expected ###
+
+```
+#!/bin/ruby_bang 1.9.3 do ruby
+puts ARGV.inspect
+```
+
+```
+$ ./argv.rb one two three four
+["one", "two", "three", "four"]
+```
