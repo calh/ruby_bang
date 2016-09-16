@@ -83,4 +83,19 @@ $ ./myscript.rb
 2.2.0
 ```
 
+#### Gemset Example ####
+
+```
+$ rvm use ruby-2.1.1
+$ rvm gemset create mygems
+$ gem install curb
+```
+
+```
+#!/bin/ruby_bang 2.1.1@mygems do ruby
+require "curb"
+curl=Curl::Easy.new
+...
+```
+
 (ADD MORE?)
