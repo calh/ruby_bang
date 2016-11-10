@@ -40,6 +40,53 @@ After it finds an RVM installation, it splits the text after the shebang executa
 into space delimited arguments.  `ruby_bang` then takes those arguments and calls `execve` to the RVM script.
 Your ruby script's name (`ARGV[0]`) is passed to RVM as the last argument.
 
+### Working with Bundler ###
+
+Some scripts just need a little extra jazz with a bundle.  `ruby_bang` will automatically `bundle check`
+and `bundle install` if the parameters after `do` have a `bundle exec` in them.
+
+Here's an example:
+
+#### `curl.rb` ####
+```ruby:
+#!/bin/ruby_bang 2.1.1 do bundle exec ruby
+require "curb"
+curl=Curl::Easy.new
+curl.url = "http://google.com"
+curl.perform
+puts curl.body_str
+```
+#### `Gemfile` ####
+```
+source "https://rubygems.org"
+gem 'curb'
+```
+
+```
+$ ./curl.rb
+Fetching gem metadata from https://rubygems.org/..
+Resolving dependencies...
+Installing curb (0.9.3)
+Using bundler (1.5.3)
+Your bundle is complete!
+Use `bundle show [gemname]` to see where a bundled gem is installed.
+<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+<TITLE>301 Moved</TITLE></HEAD><BODY>
+<H1>301 Moved</H1>
+The document has moved
+<A HREF="http://www.google.com/">here</A>.
+</BODY></HTML>
+```
+
+The bundle check output is hidden, and the next time you run the script with a correct bundle:
+
+```
+$ ./curl.rb
+<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+<TITLE>301 Moved</TITLE></HEAD><BODY>
+...
+```
+
 ### Why the name needs to begin with `ruby` ###
 
 In various attempts at trying tricks to use bash and RVM as a shebang interpreter, I found that the ruby parser kicks out
@@ -98,8 +145,6 @@ require "curb"
 curl=Curl::Easy.new
 ...
 ```
-
-(ADD MORE?)
 
 ### Arguments work as expected ###
 
