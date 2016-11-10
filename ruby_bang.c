@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdarg.h>
+#include <libgen.h>
 
 #define MAX_PARAMS 100
 
@@ -24,6 +25,7 @@ int count_params(char **params);
 int has_bundle_exec(char **rvm_params);
 int rvm_exec(int quiet, char **envp, char **rvm_params, ...);
 void bundle_install(char **rvm_params, char **envp);
+char * working_dir(char *script_path);
 
 int main(int argc, char *argv[], char **envp)
 {
@@ -43,6 +45,28 @@ int main(int argc, char *argv[], char **envp)
   execve(rvm, rvm_params, envp);
 
   return 0;
+}
+
+// change the working dir to 
+char * working_dir(char *script_path)
+{
+  char resolved_path[PATH_MAX];
+
+  if ( ! realpath(script_path, resolved_path) )
+  {
+    perror("realpath");
+    exit(1);
+  }
+
+  char *dir = dirname(strdup(resolved_path));
+
+  if (  chdir(dir) < 0 )
+  {
+    perror("chdir");
+    exit(1);
+  }
+
+  return strdup(resolved_path);
 }
 
 /* check if:
@@ -174,9 +198,12 @@ char ** build_rvm_params(char *rvm, char *argv[])
   params[0] = rvm;
 
   num_params = add_parameters(argv[1], &params);
-  // argv[2] contains the shebang script's name.
-  // pass it to RVM
-  params[++num_params] = argv[2];
+  /* argv[2] contains the shebang script's name.
+   * pass it to RVM as a full canonical path.
+   * also change working directory to script dirname
+   */
+  char *canon_script = working_dir(argv[2]);
+  params[++num_params] = canon_script;
   
   // Everthing after argv[2] are parameters passed from
   // the command line on the shell to the ruby script
