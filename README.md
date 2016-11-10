@@ -28,7 +28,8 @@ $ ./my_script.rb
 * Do you want to use multiple scripts in a crontab with different rubies?
 * Are you running Linux with wonky argument passing to shebang executables?
   * ( `#!/usr/bin/env rvm 2.2.0 do ruby` actually works on OSX )
-  
+* Do you want to use bundler (Gemfile) with your shebang script?  
+
 Then this is the app for **YOU**!
 
 ### How it works ###
