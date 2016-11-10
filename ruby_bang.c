@@ -3,6 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdarg.h>
+
+#define MAX_PARAMS 100
 
 int add_parameters(const char *, char ***);
 
@@ -12,21 +17,159 @@ char * find_rvm_path(void);
 char * find_rvm_home(void);
 char * find_rvm_system(void);
 
+char ** build_rvm_params(char *rvm, char *argv[]);
+char ** rvm_do_params(char **rvm_params);
+
+int count_params(char **params);
+int has_bundle_exec(char **rvm_params);
+int rvm_exec(int quiet, char **envp, char **rvm_params, ...);
+void bundle_install(char **rvm_params, char **envp);
+
 int main(int argc, char *argv[], char **envp)
 {
-  int i, num_params;
 
   char * rvm = find_rvm();
+  char ** rvm_params = build_rvm_params(rvm, argv);
 
   if ( rvm == NULL )
   {
     fprintf(stderr, "I can't find an RVM installation anywhere!\n\n");
     return(1);
   }
+
+  // check if we need to bundle install and do it
+  bundle_install(rvm_params, envp);
+
+  execve(rvm, rvm_params, envp);
+
+  return 0;
+}
+
+/* check if:
+ *  1) "bundle exec" is in the rvm_params list
+ *  2) run "bundle check", do nothing if exit status == 0
+ *  3) run "bundle install"
+ */
+void bundle_install(char **rvm_params, char **envp)
+{
+  if ( ! has_bundle_exec(rvm_params) )
+   return;
+
+  // bundle check in quiet mode
+  if ( rvm_exec(1, envp, rvm_params, "bundle", "check", NULL) == 0 )
+    return;
+
+  // bundle install as verbose, since we shouldn't see it often
+  if ( rvm_exec(0, envp, rvm_params, "bundle", "install", NULL) != 0 )
+  {
+    // if the install fails, don't bother to run the script
+    exit(1);
+  }
+
+}
+
+// check if "bundle exec" is in the params list
+int has_bundle_exec(char **rvm_params)
+{
+  int i;
+  for ( i = 0 ; i < count_params(rvm_params) ; i++ )
+  {
+    if ( !strcmp(rvm_params[i], "bundle") && !strcmp(rvm_params[i + 1], "exec") )
+      return 1;
+  }
+  return 0;
+}
+/* convenience function -- given the full rvm_params list
+ * from the shebang, return only the "rvm VERSION do" 
+ * list for making other calls
+ */
+char ** rvm_do_params(char **rvm_params)
+{
+  int i;
+  char ** rvm_do_params = (char **)malloc(MAX_PARAMS * sizeof(char **));
+  for ( i = 0 ; i < count_params(rvm_params) ; i++ )
+  {
+    if ( ! strcmp(rvm_params[i], "do") )
+      break;
+    rvm_do_params[i] = rvm_params[i];
+  }
+  rvm_do_params[i] = rvm_params[i];
+  rvm_do_params[++i] = NULL;
+  return rvm_do_params;
+}
+
+/* given the main rvm_params, pull out the "rvm VERSION do"
+ * part and execute a different set of parameters, then 
+ * return the exit status of the command
+ */
+int rvm_exec(int quiet, char **envp, char **rvm_params, ...)
+{
+  int rvm_count, i;
+  va_list ap;
+  char *str;
+
+  char ** rvm_do = rvm_do_params(rvm_params);
+  rvm_count = count_params(rvm_do);
+
+  va_start(ap, rvm_params);
+
+  // append varaiable args list to rvm_do
+  i = rvm_count;
+  do 
+  {
+    str = va_arg(ap, char *);
+    if ( str == NULL )
+      break;
+    rvm_do[i++] = strdup(str);
+  } while (str != NULL);
+  va_end(ap);
+  rvm_do[i] = NULL;
+
+  // fork and execve()
+  int pid = fork();
+  int status;
+ 
+  // child 
+  if ( pid == 0 )
+  { 
+    /* reopen stdout to /dev/null to make this a quiet operation 
+     * (note that fclose() seems to mess with bundler
+     */
+    if ( quiet && freopen("/dev/null", "w", stdout) == NULL )
+      fprintf(stderr, "Error reopening stdout\n");
+
+    execve(rvm_do[0], rvm_do, envp);
+  }
+  else if ( pid > 0 )
+  { //parent
+    waitpid(pid, &status, 0);
+    return( WEXITSTATUS(status) );
+  }
+  else
+  {
+    fprintf(stderr, "Fork error\n");
+    exit(1);
+  }
+ 
+  // fall back to returning error 
+  return 1;
+}
+int count_params(char **params)
+{
+  int i;
+  for ( i = 0 ; params[i] != NULL ; i++ );
+  return(i);
+}
+
+char ** build_rvm_params(char *rvm, char *argv[])
+{
+  int i, num_params;
+
+  int argc = count_params(argv);
   // simple hard coded limits, 100 params @ 1KB each 
   // should be more than enough
   char **params;
-  params = (char **)malloc(100 * sizeof(char **));
+  params = (char **)malloc(MAX_PARAMS * sizeof(char **));
 
   params[0] = rvm;
 
@@ -41,12 +184,8 @@ int main(int argc, char *argv[], char **envp)
     params[++num_params] = argv[i];
     
   params[++num_params] = NULL;
-
-  execve(rvm, params, envp);
-
-  return 0;
+  return(params);
 }
-
 /* given an input string, split it into space delimited tokens
  * and append it on element 1 of the passed in argv array.
  * Return the number of parameters seen.
