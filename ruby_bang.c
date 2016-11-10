@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <stdarg.h>
 #include <libgen.h>
+#include <sys/stat.h>
 
 #define MAX_PARAMS 100
 
@@ -26,6 +27,7 @@ int has_bundle_exec(char **rvm_params);
 int rvm_exec(int quiet, char **envp, char **rvm_params, ...);
 void bundle_install(char **rvm_params, char **envp);
 char * working_dir(char *script_path);
+int has_gemfile_mismatch();
 
 int main(int argc, char *argv[], char **envp)
 {
@@ -71,13 +73,18 @@ char * working_dir(char *script_path)
 
 /* check if:
  *  1) "bundle exec" is in the rvm_params list
- *  2) run "bundle check", do nothing if exit status == 0
- *  3) run "bundle install"
+ *  2) Check if Gemfile.lock exists and is older than Gemfile
+ *  3) run "bundle check", do nothing if exit status == 0
+ *  4) run "bundle install"
  */
 void bundle_install(char **rvm_params, char **envp)
 {
   if ( ! has_bundle_exec(rvm_params) )
    return;
+
+  // Compare Gemfile.lock time with Gemfile. Faster than bundle check
+  if ( ! has_gemfile_mismatch() )
+    return;
 
   // bundle check in quiet mode
   if ( rvm_exec(1, envp, rvm_params, "bundle", "check", NULL) == 0 )
@@ -90,6 +97,28 @@ void bundle_install(char **rvm_params, char **envp)
     exit(1);
   }
 
+}
+
+/* Check if Gemfile.lock is older than Gemfile.  By the time
+ * we get here, we've already cd'd to the directory of the Gemfile
+ */
+int has_gemfile_mismatch()
+{
+  char pathname[PATH_MAX];
+  struct stat lockfile, gemfile;
+
+  sprintf(pathname, "./Gemfile");
+  if ( stat(pathname, &gemfile) < 0  )
+    return 0;
+
+  sprintf(pathname, "./Gemfile.lock");
+  if ( stat(pathname, &lockfile) < 0  )
+    return 0;
+
+  if ( lockfile.st_mtime < gemfile.st_mtime )
+    return 1;
+
+  return 0;
 }
 
 // check if "bundle exec" is in the params list
